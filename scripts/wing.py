@@ -11,21 +11,27 @@ class Wing(ABC):
     GRAVITY = 9.81
     # Increases the weight of the aircraft with the specified factor.
     WEIGHT_CORRECTION = 1.5
+    # Minimum root chord, based on manufacturing constraints.
+    MINIMUM_CHORD = 0.1 # [m]
+    # Lift Coefficient, get from tables
+    LIFT_COEFFICIENT = 0.2
 
-    def __init__(self, weight=0.2, aircraft_span=1.2, cruise_speed=10):
+    def __init__(self, weight, aircraft_span, cruise_speed):
         # Aircraft physical properties, constrained by designer
         self.weight = weight #kg
         self.aircraft_span = aircraft_span # m
         self.wing_span = self.aircraft_span / 2
         self.area = None
-        self.chord_root = None
+        self.chord_root = self.MINIMUM_CHORD
         self.chord_tip = None
         # Aerodynamics properties
         self.cruise_speed = cruise_speed #m/s
         self.lift = None
         self.mac = None
+        self.mac_x = None
+        self.angle = None
         # Coefficient obtained from tables.
-        self.C_l = 0.2
+        self.C_l = self.LIFT_COEFFICIENT
         # Initialization methods
         self.get_lift()
         self.get_area()
@@ -49,17 +55,12 @@ class Wing(ABC):
         self.area = area
         return
 
-    def get_wing_chords(self, wing_area, aircraft_span=1.2)
+    @abstractmethod
+    def get_wing_chords(self):
         """
         Get the length of the chords at the tip and root of the wings.
         """
-        # TODO: Complete the mathod.
-        wing_span = aircraft_span / 2
-        # Get the chords at the tip and root, in function of the wing_span
-        # Trapezoid area = (wing_span/2) * (chord_tip + chord_root)
-        chord_tip = None
-        chord_root = None
-        return (chord_root, chord_tip)
+        return
 
     @abstractmethod
     def get_mac(self):
@@ -74,10 +75,7 @@ class Wing(ABC):
         return
 
     @abstractmethod
-    def get_wing_ymean(self):
-        """
-        Abstract method for getting the y coord. of the center of mass.
-        """
+    def get_angle(self):
         return
 
 
@@ -85,8 +83,17 @@ class RightWing(Wing):
     """
     Basic wing class, with a right trapezoid shape.
     """
-    def __init__(self, weight=0.2, aircraft_span=1.2, cruise_speed=10)
+    def __init__(self, weight=0.2, aircraft_span=1.2, cruise_speed=15):
         Wing.__init__(self, weight, aircraft_span, cruise_speed)
+
+    def get_wing_chords(self):
+        """
+        Get the length of the chords at the tip and root of the wings.
+        """
+        # Get the chords at the tip and root, in function of the wing_span
+        # Trapezoid area = (wing_span/2) * (chord_tip + chord_root)
+        self.chord_tip = (self.area/2) * (2/self.wing_span) - self.chord_root
+        return (self.chord_root, self.chord_tip)
 
     def get_mac(self):
         """
@@ -116,33 +123,28 @@ class RightWing(Wing):
         h = ((self.wing_span-X_crossing) * (self.chord_tip-self.chord_root)
             / self.wing_span)
         self.mac = self.chord_root + h
+        self.mac_x = X_crossing
         return
 
-    def get_wing_ymean(self):
-        """Calculate wing Y_mean"""
+    def get_angle(self):
         return
 
 
 class ObtuseWing(Wing):
     """
     Wing class representing an obtuse trapezoid shape.
-
-    Wing_Area = wing_span/2 * (b_t + b_r + d/2 - 1)
     """
-    def __init__(self, weight=0.2, aircraft_span=1.2, cruise_speed=10,
-                 displacement=0.2)
+    def __init__(self, weight=0.2, aircraft_span=1.2, cruise_speed=15,
+                 displacement=0.2):
         Wing.__init__(self, weight, aircraft_span, cruise_speed)
         # Displacement from the right trapezoid
         self.displacement = displacement # m
-    
-    def get_displacement(self):
-        """
-        Calculate the displacement from the ideal right trapezoid.Wing
 
-        The calculation is constrained by the distance to the center of
-        gravity rule-of-thumb.
+    def get_wing_chords(self):
         """
-        return
+        Get the length of the chords at the tip and root of the wings.
+        """
+        return (self.chord_root, self.chord_tip)
 
     def get_mac(self):
         """
@@ -180,8 +182,21 @@ class ObtuseWing(Wing):
         y_top = a_top * X_crossing + b_top
         y_bottom = a_bottom * X_crossing + b_bottom
         self.mac = y_top - y_bottom
+        self.mac_x = X_crossing
         return
 
-    def get_wing_ymean(self):
-        """Calculate wing Y_mean"""
+    def get_angle(self):
         return
+
+    def get_displacement(self):
+        """
+        Calculate the displacement from the ideal right trapezoid.Wing
+
+        The calculation is constrained by the distance to the center of
+        gravity rule-of-thumb.
+        """
+        return
+
+
+if __name__ == "__main__":
+    my_wing = RightWing()
